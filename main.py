@@ -5,6 +5,7 @@ Usage:
     python main.py              # runs first 5 problems
     python main.py --n 20       # runs first 20 problems
     python main.py --id 42      # runs HumanEval/42 only
+    python main.py --debug      # enable AgentDebug root cause analysis on failures
 """
 
 import argparse
@@ -17,8 +18,19 @@ from agents.planner import plan
 from agents.verifier import verify
 from data.humaneval_loader import load_humaneval
 
+# Lazy-import debugger so the system still works without it being invoked
+_debugger = None
 
-def run_pipeline(problem: dict) -> dict:
+
+def _get_debugger():
+    global _debugger
+    if _debugger is None:
+        from debugger import AgentDebugger
+        _debugger = AgentDebugger(verbose=False)
+    return _debugger
+
+
+def run_pipeline(problem: dict, debug: bool = False) -> dict:
     task_id = problem["task_id"]
     print(f"\n{'='*60}")
     print(f"Task:               {task_id}")
@@ -30,11 +42,17 @@ def run_pipeline(problem: dict) -> dict:
 
     # --- Planner ---
     print("[PLANNER] Generating plan...")
+    planner_input = f"Plan a solution for this problem:\n\n{problem['prompt']}"
     plan_text = plan(problem["prompt"])
     print(f"\n{plan_text}\n")
 
     # --- Coder ---
     print("[CODER] Generating solution...")
+    coder_input = (
+        f"Problem:\n{problem['prompt']}\n\n"
+        f"Plan:\n{plan_text}\n\n"
+        "Implement the solution:"
+    )
     solution_code = code(problem["prompt"], plan_text)
     print(f"\n{solution_code}\n")
 
@@ -48,14 +66,100 @@ def run_pipeline(problem: dict) -> dict:
         if result["review"]:
             print(f"\n--- Review ---\n{result['review']}")
 
-    return {
+    pipeline_result = {
         "task_id": task_id,
         "passed": result["passed"],
         "plan": plan_text,
         "code": solution_code,
         "error": result["stderr"],
         "review": result["review"],
+        "debug": None,
     }
+
+    # --- AgentDebug root cause analysis on failure ---
+    if debug and not result["passed"]:
+        from debugger import AgentStep, Trajectory
+
+        trajectory = Trajectory(
+            task_id=task_id,
+            task_description=problem["prompt"],
+            steps=[
+                AgentStep(
+                    step_num=1,
+                    agent_name="planner",
+                    agent_input=planner_input,
+                    agent_output=plan_text,
+                ),
+                AgentStep(
+                    step_num=2,
+                    agent_name="coder",
+                    agent_input=coder_input,
+                    agent_output=solution_code,
+                ),
+                AgentStep(
+                    step_num=3,
+                    agent_name="verifier",
+                    agent_input=(
+                        f"Code:\n{solution_code}\n\n"
+                        f"Test error:\n{result['stderr']}\n\n"
+                        "What is wrong and how should it be fixed?"
+                    ),
+                    agent_output=result["review"] or "(no review generated)",
+                    metadata={"passed": result["passed"], "error": result["stderr"]},
+                ),
+            ],
+            final_passed=result["passed"],
+            final_error=result["stderr"],
+        )
+
+        debug_result = _get_debugger().debug(trajectory)
+        pipeline_result["debug"] = debug_result.to_dict()
+
+    return pipeline_result
+
+
+def print_summary_report(results: list, pass_at_1: float) -> None:
+    W = 72
+    SEP = "=" * W
+    THIN = "-" * W
+
+    def _trunc(text: str, n: int) -> str:
+        text = (text or "").replace("\n", " ").strip()
+        return text[:n] + "…" if len(text) > n else text
+
+    print(f"\n{SEP}")
+    print("  FINAL SUMMARY REPORT")
+    print(f"  {len(results)} tasks  |  Pass@1: {pass_at_1:.2%}  "
+          f"({sum(1 for r in results if r['passed'])}/{len(results)} passed)")
+    print(SEP)
+
+    for r in results:
+        status = "PASS ✓" if r["passed"] else "FAIL ✗"
+        print(f"\n  Task       : {r['task_id']}")
+        print(f"  Result     : {status}")
+
+        if not r["passed"]:
+            print(f"  Error      : {_trunc(r.get('error', ''), 80)}")
+
+            rc = (r.get("debug") or {}).get("root_cause")
+            if rc:
+                agent = rc.get("critical_agent", "unknown").upper()
+                step  = rc.get("critical_step", "?")
+                etype = rc.get("error_type", "unknown")
+                mod   = rc.get("module", "unknown")
+                desc  = _trunc(rc.get("description", ""), 90)
+                fix   = _trunc(rc.get("fix_suggestion", ""), 90)
+                conf  = rc.get("confidence", 0.0)
+                print(f"  Root cause : [{mod.upper()}] {etype}  (confidence {conf:.0%})")
+                print(f"  Caused by  : Step {step} — {agent}")
+                print(f"  Description: {desc}")
+                print(f"  Fix hint   : {fix}")
+            else:
+                print("  Root cause : (run with --debug to enable analysis)")
+
+        print(f"  {THIN}")
+
+    print(SEP)
 
 
 def save_results(results: list, pass_at_1: float) -> str:
@@ -78,6 +182,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=5, help="Number of problems to run")
     parser.add_argument("--id", type=int, default=None, help="Run a single problem by index")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run AgentDebug root cause analysis on failed problems",
+    )
     args = parser.parse_args()
 
     print("Loading HumanEval dataset...")
@@ -86,18 +195,13 @@ def main() -> None:
 
     subset = [problems[args.id]] if args.id is not None else problems[: args.n]
 
-    results = [run_pipeline(p) for p in subset]
+    results = [run_pipeline(p, debug=args.debug) for p in subset]
 
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
     pass_at_1 = passed / total if total > 0 else 0.0
 
-    print(f"\n{'='*60}")
-    print(f"Pass@1: {pass_at_1:.2%}  ({passed}/{total} passed)")
-    print(f"{'='*60}")
-    for r in results:
-        icon = "✓" if r["passed"] else "✗"
-        print(f"  {icon}  {r['task_id']}")
+    print_summary_report(results, pass_at_1)
 
     out_path = save_results(results, pass_at_1)
     print(f"\nResults saved to {out_path}")
