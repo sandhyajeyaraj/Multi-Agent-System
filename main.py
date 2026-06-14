@@ -118,28 +118,29 @@ def run_pipeline(problem: dict, debug: bool = False) -> dict:
     return pipeline_result
 
 
-def print_summary_report(results: list, pass_at_1: float) -> None:
+def _build_summary_report(results: list, pass_at_1: float) -> str:
     W = 72
     SEP = "=" * W
     THIN = "-" * W
+    lines = []
 
     def _trunc(text: str, n: int) -> str:
         text = (text or "").replace("\n", " ").strip()
         return text[:n] + "…" if len(text) > n else text
 
-    print(f"\n{SEP}")
-    print("  FINAL SUMMARY REPORT")
-    print(f"  {len(results)} tasks  |  Pass@1: {pass_at_1:.2%}  "
-          f"({sum(1 for r in results if r['passed'])}/{len(results)} passed)")
-    print(SEP)
+    lines.append(f"\n{SEP}")
+    lines.append("  FINAL SUMMARY REPORT")
+    lines.append(f"  {len(results)} tasks  |  Pass@1: {pass_at_1:.2%}  "
+                 f"({sum(1 for r in results if r['passed'])}/{len(results)} passed)")
+    lines.append(SEP)
 
     for r in results:
         status = "PASS ✓" if r["passed"] else "FAIL ✗"
-        print(f"\n  Task       : {r['task_id']}")
-        print(f"  Result     : {status}")
+        lines.append(f"\n  Task       : {r['task_id']}")
+        lines.append(f"  Result     : {status}")
 
         if not r["passed"]:
-            print(f"  Error      : {_trunc(r.get('error', ''), 80)}")
+            lines.append(f"  Error      : {_trunc(r.get('error', ''), 80)}")
 
             rc = (r.get("debug") or {}).get("root_cause")
             if rc:
@@ -150,21 +151,36 @@ def print_summary_report(results: list, pass_at_1: float) -> None:
                 desc  = _trunc(rc.get("description", ""), 90)
                 fix   = _trunc(rc.get("fix_suggestion", ""), 90)
                 conf  = rc.get("confidence", 0.0)
-                print(f"  Root cause : [{mod.upper()}] {etype}  (confidence {conf:.0%})")
-                print(f"  Caused by  : Step {step} — {agent}")
-                print(f"  Description: {desc}")
-                print(f"  Fix hint   : {fix}")
+                lines.append(f"  Root cause : [{mod.upper()}] {etype}  (confidence {conf:.0%})")
+                lines.append(f"  Caused by  : Step {step} — {agent}")
+                lines.append(f"  Description: {desc}")
+                lines.append(f"  Fix hint   : {fix}")
             else:
-                print("  Root cause : (run with --debug to enable analysis)")
+                lines.append("  Root cause : (run with --debug to enable analysis)")
 
-        print(f"  {THIN}")
+        lines.append(f"  {THIN}")
 
-    print(SEP)
+    lines.append(SEP)
+    return "\n".join(lines)
 
 
-def save_results(results: list, pass_at_1: float) -> str:
+def print_summary_report(results: list, pass_at_1: float) -> None:
+    print(_build_summary_report(results, pass_at_1))
+
+
+def save_summary(results: list, pass_at_1: float, timestamp: str) -> str:
+    os.makedirs("summary", exist_ok=True)
+    path = f"summary/summary_{timestamp}.txt"
+    with open(path, "w") as f:
+        f.write(_build_summary_report(results, pass_at_1))
+        f.write("\n")
+    return path
+
+
+def save_results(results: list, pass_at_1: float, timestamp=None) -> str:
     os.makedirs("results", exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     path = f"results/run_{timestamp}.json"
     payload = {
         "timestamp": timestamp,
@@ -203,8 +219,11 @@ def main() -> None:
 
     print_summary_report(results, pass_at_1)
 
-    out_path = save_results(results, pass_at_1)
-    print(f"\nResults saved to {out_path}")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_path = save_results(results, pass_at_1, timestamp)
+    summary_path = save_summary(results, pass_at_1, timestamp)
+    print(f"\nResults saved to  {out_path}")
+    print(f"Summary saved to  {summary_path}")
 
 
 if __name__ == "__main__":
