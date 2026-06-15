@@ -10,8 +10,12 @@ Usage:
 
 import argparse
 import json
-import os
 from datetime import datetime
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+RESULTS_DIR = BASE_DIR / "results"
+SUMMARY_DIR = BASE_DIR / "summary"
 
 from agents.coder import code
 from agents.planner import plan
@@ -169,19 +173,17 @@ def print_summary_report(results: list, pass_at_1: float) -> None:
 
 
 def save_summary(results: list, pass_at_1: float, timestamp: str) -> str:
-    os.makedirs("summary", exist_ok=True)
-    path = f"summary/summary_{timestamp}.txt"
-    with open(path, "w") as f:
-        f.write(_build_summary_report(results, pass_at_1))
-        f.write("\n")
-    return path
+    SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
+    path = SUMMARY_DIR / f"summary_{timestamp}.txt"
+    path.write_text(_build_summary_report(results, pass_at_1) + "\n")
+    return str(path)
 
 
 def save_results(results: list, pass_at_1: float, timestamp=None) -> str:
-    os.makedirs("results", exist_ok=True)
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     if timestamp is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = f"results/run_{timestamp}.json"
+    path = RESULTS_DIR / f"run_{timestamp}.json"
     payload = {
         "timestamp": timestamp,
         "total": len(results),
@@ -191,7 +193,7 @@ def save_results(results: list, pass_at_1: float, timestamp=None) -> str:
     }
     with open(path, "w") as f:
         json.dump(payload, f, indent=2)
-    return path
+    return str(path)
 
 
 def main() -> None:
