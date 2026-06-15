@@ -119,15 +119,24 @@ def _parse_root_cause(raw: str) -> RootCause | None:
         return None
     try:
         data = json.loads(match.group())
+        
+        # Helper to convert list/non-string values to strings
+        def to_str(value: any, default: str = "") -> str:
+            if isinstance(value, list):
+                return " ".join(str(v) for v in value)
+            elif value is None:
+                return default
+            return str(value)
+        
         return RootCause(
             critical_step=int(data.get("critical_step", 1)),
-            critical_agent=data.get("critical_agent", "unknown"),
-            module=data.get("module", "unknown"),
-            error_type=data.get("error_type", "unknown"),
-            description=data.get("description", ""),
-            evidence=data.get("evidence", ""),
-            cascading_effects=data.get("cascading_effects", ""),
-            fix_suggestion=data.get("fix_suggestion", ""),
+            critical_agent=to_str(data.get("critical_agent"), "unknown"),
+            module=to_str(data.get("module"), "unknown"),
+            error_type=to_str(data.get("error_type"), "unknown"),
+            description=to_str(data.get("description"), ""),
+            evidence=to_str(data.get("evidence"), ""),
+            cascading_effects=to_str(data.get("cascading_effects"), ""),
+            fix_suggestion=to_str(data.get("fix_suggestion"), ""),
             confidence=float(data.get("confidence", 0.5)),
         )
     except (json.JSONDecodeError, ValueError):
