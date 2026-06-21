@@ -30,21 +30,23 @@ def _extract_code(text: str) -> str:
     return text.strip()
 
 
-def code(problem_prompt: str, plan: str) -> str:
+def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
     """Return a Python implementation based on the problem prompt and plan."""
+    user_content = (
+        f"Problem:\n{problem_prompt}\n\n"
+        f"Plan:\n{plan}\n\n"
+        "Implement the solution:"
+    )
+    if error_context:
+        user_content += (
+            f"\n\nA previous attempt produced this test error — fix the bug:\n{error_context}"
+        )
     response = _client.chat.completions.create(
         model=_MODEL,
         max_tokens=2048,
         messages=[
             {"role": "system", "content": _SYSTEM},
-            {
-                "role": "user",
-                "content": (
-                    f"Problem:\n{problem_prompt}\n\n"
-                    f"Plan:\n{plan}\n\n"
-                    "Implement the solution:"
-                ),
-            },
+            {"role": "user", "content": user_content},
         ],
     )
     return _extract_code(response.choices[0].message.content)
