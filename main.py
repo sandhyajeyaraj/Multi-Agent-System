@@ -6,6 +6,7 @@ Usage:
     python main.py --n 20       # runs first 20 problems
     python main.py --id 42      # runs HumanEval/42 only
     python main.py --debug      # enable AgentDebug root cause analysis on failures
+    python main.py --recover    # on failure, classify failing step and re-run from there
 """
 
 import argparse
@@ -22,7 +23,6 @@ from agents.planner import plan
 from agents.verifier import verify
 from data.humaneval_loader import load_humaneval
 
-# Lazy-import debugger so the system still works without it being invoked
 _debugger = None
 
 
@@ -34,7 +34,7 @@ def _get_debugger():
     return _debugger
 
 
-def run_pipeline(problem: dict, debug: bool = False) -> dict:
+def run_pipeline(problem: dict, debug: bool = False, recover: bool = False) -> dict:
     task_id = problem["task_id"]
     print(f"\n{'='*60}")
     print(f"Task:               {task_id}")
@@ -77,8 +77,21 @@ def run_pipeline(problem: dict, debug: bool = False) -> dict:
         "code": solution_code,
         "error": result["stderr"],
         "review": result["review"],
+        "recovery": None,
         "debug": None,
     }
+
+    # --- Recovery orchestrator on failure ---
+    if recover and not result["passed"]:
+        from recovery import RecoveryOrchestrator
+        recovery = RecoveryOrchestrator().recover(
+            problem=problem,
+            plan_text=plan_text,
+            solution_code=solution_code,
+            error=result["stderr"],
+            review=result["review"],
+        )
+        pipeline_result["recovery"] = recovery
 
     # --- AgentDebug root cause analysis on failure ---
     if debug and not result["passed"]:
@@ -146,6 +159,19 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
         if not r["passed"]:
             lines.append(f"  Error      : {_trunc(r.get('error', ''), 80)}")
 
+            rec = r.get("recovery")
+            if rec:
+                step_names = {1: "Planner", 2: "Coder", 3: "Verifier"}
+                step_label = step_names.get(rec["failing_step"], str(rec["failing_step"]))
+                rec_status = "PASS ✓" if rec["passed"] else "FAIL ✗"
+                lines.append(f"  Recovery   : classified → step {rec['failing_step']} ({step_label})")
+                lines.append(f"  Rec reason : {_trunc(rec['reason'], 90)}")
+                lines.append(f"  Rec result : {rec_status}")
+                if not rec["passed"]:
+                    lines.append(f"  Rec error  : {_trunc(rec.get('error', ''), 80)}")
+            else:
+                lines.append("  Recovery   : (run with --recover to enable)")
+
             rc = (r.get("debug") or {}).get("root_cause")
             if rc:
                 agent = rc.get("critical_agent", "unknown").upper()
@@ -159,8 +185,6 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
                 lines.append(f"  Caused by  : Step {step} — {agent}")
                 lines.append(f"  Description: {desc}")
                 lines.append(f"  Fix hint   : {fix}")
-            else:
-                lines.append("  Root cause : (run with --debug to enable analysis)")
 
         lines.append(f"  {THIN}")
 
@@ -205,6 +229,11 @@ def main() -> None:
         action="store_true",
         help="Run AgentDebug root cause analysis on failed problems",
     )
+    parser.add_argument(
+        "--recover",
+        action="store_true",
+        help="On failure, classify the failing step and re-run the pipeline from there",
+    )
     args = parser.parse_args()
 
     print("Loading HumanEval dataset...")
@@ -213,7 +242,7 @@ def main() -> None:
 
     subset = [problems[args.id]] if args.id is not None else problems[: args.n]
 
-    results = [run_pipeline(p, debug=args.debug) for p in subset]
+    results = [run_pipeline(p, debug=args.debug, recover=args.recover) for p in subset]
 
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
