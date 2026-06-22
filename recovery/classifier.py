@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import re
 
-from config import MODEL as _MODEL
+from config import ANALYZER_MODEL as _MODEL
 from config import client as _client
 
 _SYSTEM = """You are a diagnostic agent for a multi-agent coding pipeline (Planner → Coder → Verifier).

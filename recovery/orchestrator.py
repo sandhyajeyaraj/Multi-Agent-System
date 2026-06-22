@@ -31,7 +31,7 @@ class RecoveryOrchestrator:
 
         if failing_step == 1:
             print("[RECOVERY] Rerunning from step 1: Planner → Coder → Verifier")
-            plan_text = plan(problem["prompt"])
+            plan_text = plan(problem["prompt"], error_context=reason)
             print(f"\n{plan_text}\n")
             solution_code = code(problem["prompt"], plan_text)
             print(f"\n{solution_code}\n")

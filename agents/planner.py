@@ -21,14 +21,20 @@ Observation:
 Output only the ReAct trace above — no code."""
 
 
-def plan(problem_prompt: str) -> str:
+def plan(problem_prompt: str, error_context: str = "") -> str:
     """Return a ReAct-style solution plan for the given HumanEval problem."""
+    user_content = f"Plan a solution for this problem:\n\n{problem_prompt}"
+    if error_context:
+        user_content += (
+            f"\n\nA previous plan was ineffective. Here's why it failed:\n{error_context}\n"
+            "Create a better plan:"
+        )
     response = _client.chat.completions.create(
         model=_MODEL,
         max_tokens=1024,
         messages=[
             {"role": "system", "content": _SYSTEM},
-            {"role": "user", "content": f"Plan a solution for this problem:\n\n{problem_prompt}"},
+            {"role": "user", "content": user_content},
         ],
     )
     return response.choices[0].message.content.strip()
