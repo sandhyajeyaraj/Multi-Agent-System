@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -47,6 +48,7 @@ def run_pipeline(problem: dict, debug: bool = False, recover: bool = False) -> d
     # --- Planner ---
     print("[PLANNER] Generating plan...")
     planner_input = f"Plan a solution for this problem:\n\n{problem['prompt']}"
+    _t0 = time.perf_counter()
     plan_text = plan(problem["prompt"])
     print(f"\n{plan_text}\n")
 
@@ -63,8 +65,9 @@ def run_pipeline(problem: dict, debug: bool = False, recover: bool = False) -> d
     # --- Verifier ---
     print("[VERIFIER] Running tests...")
     result = verify(solution_code, problem["test"], problem["entry_point"])
+    initial_elapsed = time.perf_counter() - _t0
     status = "PASS ✓" if result["passed"] else "FAIL ✗"
-    print(f"  Result: {status}")
+    print(f"  Result: {status}  ({initial_elapsed:.1f}s)")
     if not result["passed"]:
         print(f"\n--- Error ---\n{result['stderr']}")
         if result["review"]:
@@ -77,13 +80,16 @@ def run_pipeline(problem: dict, debug: bool = False, recover: bool = False) -> d
         "code": solution_code,
         "error": result["stderr"],
         "review": result["review"],
+        "initial_elapsed_s": round(initial_elapsed, 2),
         "recovery": None,
+        "recovery_elapsed_s": None,
         "debug": None,
     }
 
     # --- Recovery orchestrator on failure ---
     if recover and not result["passed"]:
         from recovery import RecoveryOrchestrator
+        _t_rec = time.perf_counter()
         recovery = RecoveryOrchestrator().recover(
             problem=problem,
             plan_text=plan_text,
@@ -91,7 +97,11 @@ def run_pipeline(problem: dict, debug: bool = False, recover: bool = False) -> d
             error=result["stderr"],
             review=result["review"],
         )
+        recovery_elapsed = time.perf_counter() - _t_rec
+        print(f"  Recovery result: {'PASS ✓' if recovery['passed'] else 'FAIL ✗'}  ({recovery_elapsed:.1f}s)")
         pipeline_result["recovery"] = recovery
+        pipeline_result["recovery_elapsed_s"] = round(recovery_elapsed, 2)
+        pipeline_result["total_elapsed_s"] = round(initial_elapsed + recovery_elapsed, 2)
 
     # --- AgentDebug root cause analysis on failure ---
     if debug and not result["passed"]:
@@ -153,8 +163,10 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
 
     for r in results:
         status = "PASS ✓" if r["passed"] else "FAIL ✗"
+        initial_s = r.get("initial_elapsed_s")
+        timing_str = f"  ({initial_s}s)" if initial_s is not None else ""
         lines.append(f"\n  Task       : {r['task_id']}")
-        lines.append(f"  Result     : {status}")
+        lines.append(f"  Result     : {status}{timing_str}")
 
         if not r["passed"]:
             lines.append(f"  Error      : {_trunc(r.get('error', ''), 80)}")
@@ -164,9 +176,14 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
                 step_names = {1: "Planner", 2: "Coder", 3: "Verifier"}
                 step_label = step_names.get(rec["failing_step"], str(rec["failing_step"]))
                 rec_status = "PASS ✓" if rec["passed"] else "FAIL ✗"
+                rec_s = r.get("recovery_elapsed_s")
+                rec_timing = f"  ({rec_s}s)" if rec_s is not None else ""
+                total_s = r.get("total_elapsed_s")
                 lines.append(f"  Recovery   : classified → step {rec['failing_step']} ({step_label})")
                 lines.append(f"  Rec reason : {_trunc(rec['reason'], 90)}")
-                lines.append(f"  Rec result : {rec_status}")
+                lines.append(f"  Rec result : {rec_status}{rec_timing}")
+                if total_s is not None:
+                    lines.append(f"  Total time : {total_s}s  ({initial_s}s initial + {rec_s}s recovery)")
                 if not rec["passed"]:
                     lines.append(f"  Rec error  : {_trunc(rec.get('error', ''), 80)}")
             else:
