@@ -1,3 +1,4 @@
+import ast
 import re
 
 from config import MODEL as _MODEL
@@ -13,20 +14,50 @@ Observation: <state input types, output type, and any imports needed>
 Thought: <walk through the algorithm step by step before writing code>
 Action: Implement
 Observation:
-<raw Python function here — no markdown fences, no extra explanation>
+```python
+<your complete solution here>
+```
 
-Output only the ReAct trace above. The final Observation must contain ONLY the raw Python code."""
+Output only the ReAct trace above. The final Observation must contain exactly one ```python fenced block with the complete solution and nothing else."""
+
+_FENCE = re.compile(r"```(?:python)?\n(.*?)```", re.DOTALL)
+_CODE_START = re.compile(r"^\s*(def |class |import |from |@)", re.MULTILINE)
+
+
+def _try_parse(code: str) -> bool:
+    try:
+        ast.parse(code)
+        return True
+    except SyntaxError:
+        return False
+
+
+def _trim_to_valid(code: str) -> str | None:
+    """Drop trailing lines until the snippet parses; return None if never valid."""
+    code = code.rstrip()
+    if _try_parse(code):
+        return code
+    lines = code.splitlines()
+    for end in range(len(lines) - 1, 0, -1):
+        snippet = "\n".join(lines[:end]).rstrip()
+        if snippet and _try_parse(snippet):
+            return snippet
+    return None
 
 
 def _extract_code(text: str) -> str:
-    # Try markdown fences first
-    match = re.search(r"```(?:python)?\n(.*?)```", text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    # Fall back to everything after the last "Observation:" line
-    parts = re.split(r"(?i)^Observation:", text, flags=re.MULTILINE)
-    if len(parts) > 1:
-        return parts[-1].strip()
+    # 1. Prefer fenced blocks; return the first that parses
+    for m in _FENCE.finditer(text):
+        result = _trim_to_valid(m.group(1).strip())
+        if result:
+            return result
+
+    # 2. Scan for code-like regions; retry on each until one parses
+    for m in _CODE_START.finditer(text):
+        result = _trim_to_valid(text[m.start():])
+        if result:
+            return result
+
     return text.strip()
 
 
