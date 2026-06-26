@@ -1,7 +1,11 @@
 import ast
 import re
 
-from config import MODEL as _MODEL
+from config import CODE_MAX_TOKENS as _MAX_TOKENS
+from config import CODER_MODEL as _MODEL
+from config import SEED as _SEED
+from config import TEMPERATURE as _TEMPERATURE
+from config import TOP_P as _TOP_P
 from config import client as _client
 
 _SYSTEM = """You are a coding agent that uses ReAct (Reasoning + Acting) to implement Python solutions.
@@ -74,7 +78,10 @@ def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
         )
     response = _client.chat.completions.create(
         model=_MODEL,
-        max_tokens=2048,
+        max_tokens=_MAX_TOKENS,
+        temperature=_TEMPERATURE,
+        top_p=_TOP_P,
+        seed=_SEED,
         messages=[
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": user_content},

@@ -3,7 +3,12 @@ import subprocess
 import sys
 import tempfile
 
-from config import MODEL as _MODEL
+from config import REVIEW_MAX_TOKENS as _MAX_TOKENS
+from config import SEED as _SEED
+from config import TEMPERATURE as _TEMPERATURE
+from config import TOP_P as _TOP_P
+from config import VERIFIER_MODEL as _MODEL
+from config import VERIFIER_TIMEOUT as _TIMEOUT
 from config import client as _client
 
 _SYSTEM = (
@@ -33,7 +38,7 @@ def verify(solution_code: str, test_code: str, entry_point: str) -> dict:
             [sys.executable, tmp_path],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=_TIMEOUT,
         )
         passed = proc.returncode == 0
         result = {
@@ -52,7 +57,7 @@ def verify(solution_code: str, test_code: str, entry_point: str) -> dict:
         return {
             "passed": False,
             "stdout": "",
-            "stderr": "Execution timed out after 10 s",
+            "stderr": f"Execution timed out after {_TIMEOUT} s",
             "review": "",
         }
     finally:
@@ -64,7 +69,10 @@ def _review(solution_code: str, error_output: str) -> str:
     """Ask the model to diagnose why the solution failed."""
     response = _client.chat.completions.create(
         model=_MODEL,
-        max_tokens=512,
+        max_tokens=_MAX_TOKENS,
+        temperature=_TEMPERATURE,
+        top_p=_TOP_P,
+        seed=_SEED,
         messages=[
             {"role": "system", "content": _SYSTEM},
             {
