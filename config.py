@@ -5,9 +5,9 @@ from openai import OpenAI
 # ---------------------------------------------------------------------------
 # Per-agent model split: lets you test "small planner + large coder" combos.
 # Set all three to the same value to replicate the original single-model setup.
-PLANNER_MODEL  = "qwen2.5-coder:32b"
+PLANNER_MODEL  = "qwen2.5-coder:7b"
 CODER_MODEL    = "qwen2.5-coder:32b"
-VERIFIER_MODEL = "qwen2.5-coder:32b"
+VERIFIER_MODEL = "qwen2.5-coder:7b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL

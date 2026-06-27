@@ -3,11 +3,11 @@ import subprocess
 import sys
 import tempfile
 
+import config
 from config import REVIEW_MAX_TOKENS as _MAX_TOKENS
 from config import SEED as _SEED
 from config import TEMPERATURE as _TEMPERATURE
 from config import TOP_P as _TOP_P
-from config import VERIFIER_MODEL as _MODEL
 from config import VERIFIER_TIMEOUT as _TIMEOUT
 from config import client as _client
 
@@ -68,7 +68,7 @@ def verify(solution_code: str, test_code: str, entry_point: str) -> dict:
 def _review(solution_code: str, error_output: str) -> str:
     """Ask the model to diagnose why the solution failed."""
     response = _client.chat.completions.create(
-        model=_MODEL,
+        model=config.VERIFIER_MODEL,
         max_tokens=_MAX_TOKENS,
         temperature=_TEMPERATURE,
         top_p=_TOP_P,

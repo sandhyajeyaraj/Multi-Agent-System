@@ -1,8 +1,8 @@
 import ast
 import re
 
+import config
 from config import CODE_MAX_TOKENS as _MAX_TOKENS
-from config import CODER_MODEL as _MODEL
 from config import SEED as _SEED
 from config import TEMPERATURE as _TEMPERATURE
 from config import TOP_P as _TOP_P
@@ -77,7 +77,7 @@ def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
             f"\n\nA previous attempt produced this test error — fix the bug:\n{error_context}"
         )
     response = _client.chat.completions.create(
-        model=_MODEL,
+        model=config.CODER_MODEL,
         max_tokens=_MAX_TOKENS,
         temperature=_TEMPERATURE,
         top_p=_TOP_P,
