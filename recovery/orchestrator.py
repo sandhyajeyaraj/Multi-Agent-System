@@ -38,7 +38,7 @@ class RecoveryOrchestrator:
 
         elif failing_step == 2:
             print("[RECOVERY] Rerunning from step 2: Coder → Verifier")
-            solution_code = code(problem["prompt"], plan_text, error_context=error)
+            solution_code = code(problem["prompt"], plan_text, error_context=f"{error}\n\nDiagnosis:\n{review}")
             print(f"\n{solution_code}\n")
 
         else:
