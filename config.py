@@ -5,7 +5,7 @@ from openai import OpenAI
 # ---------------------------------------------------------------------------
 # Pipeline agents — cheap model for the initial run.
 PLANNER_MODEL  = "qwen2.5-coder:7b"
-CODER_MODEL    = "qwen2.5-coder:32b"
+CODER_MODEL    = "qwen2.5-coder:7b"
 VERIFIER_MODEL = "qwen2.5-coder:7b"
 
 # Escalation — only the coder is upgraded during recovery.
