@@ -24,6 +24,24 @@ Observation:
 
 Output only the ReAct trace above. The final Observation must contain exactly one ```python fenced block with the complete solution and nothing else."""
 
+_RECOVERY_SYSTEM = """You are a debugging agent. Your previous solution FAILED a test.
+Use ReAct to diagnose and fix it. Follow this exact format:
+
+Thought: <restate what the code was supposed to do>
+Observation: The failing test was: <FAILING_INPUT> → expected <EXPECTED>, got <ACTUAL>
+Thought: <trace your previous code line by line ON THIS SPECIFIC INPUT, find where it diverges>
+Action: Locate the exact line/branch causing the wrong output
+Observation: <name the bug: e.g. "the loop skips the last element">
+Thought: <state the minimal fix>
+Action: Implement
+Observation:
+```python
+<complete corrected solution>
+```
+
+You will be given: the problem, your previous (failing) code, and the failing test case.
+Trace the failing input through your old code BEFORE rewriting. Output only the ReAct trace."""
+
 _FENCE = re.compile(r"```(?:python)?\n(.*?)```", re.DOTALL)
 _CODE_START = re.compile(r"^\s*(def |class |import |from |@)", re.MULTILINE)
 
@@ -67,14 +85,19 @@ def _extract_code(text: str) -> str:
 
 def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
     """Return a Python implementation based on the problem prompt and plan."""
-    user_content = (
-        f"Problem:\n{problem_prompt}\n\n"
-        f"Plan:\n{plan}\n\n"
-        "Implement the solution:"
-    )
     if error_context:
-        user_content += (
-            f"\n\nA previous attempt produced this test error — fix the bug:\n{error_context}"
+        system = _RECOVERY_SYSTEM
+        user_content = (
+            f"Problem:\n{problem_prompt}\n\n"
+            f"Previous (failing) code:\n{plan}\n\n"
+            f"Failing test output:\n{error_context}"
+        )
+    else:
+        system = _SYSTEM
+        user_content = (
+            f"Problem:\n{problem_prompt}\n\n"
+            f"Plan:\n{plan}\n\n"
+            "Implement the solution:"
         )
     response = _client.chat.completions.create(
         model=config.CODER_MODEL,
@@ -83,7 +106,7 @@ def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
         top_p=_TOP_P,
         seed=_SEED,
         messages=[
-            {"role": "system", "content": _SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ],
     )

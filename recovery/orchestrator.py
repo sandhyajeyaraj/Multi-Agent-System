@@ -50,8 +50,8 @@ class RecoveryOrchestrator:
         elif failing_step == 2:
             print(f"[RECOVERY] Rerunning from step 2: Coder({config.RECOVERY_CODER_MODEL}) → Verifier")
             solution_code = _code_with_escalation(
-                problem["prompt"], plan_text,
-                error_context=f"{error}\n\nDiagnosis:\n{review}",
+                problem["prompt"], solution_code,
+                error_context=error,
             )
             print(f"\n{solution_code}\n")
 
