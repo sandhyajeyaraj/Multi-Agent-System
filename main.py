@@ -155,6 +155,12 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
         text = (text or "").replace("\n", " ").strip()
         return text[:n] + "…" if len(text) > n else text
 
+    def _tail_error(text: str, n: int) -> str:
+        """Show the last non-empty line of a traceback (the actual exception), not the first."""
+        lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
+        last = lines[-1] if lines else ""
+        return last[:n] + "…" if len(last) > n else last
+
     lines.append(f"\n{SEP}")
     lines.append("  FINAL SUMMARY REPORT")
     lines.append(f"  {len(results)} tasks  |  Pass@1: {pass_at_1:.2%}  "
@@ -169,7 +175,7 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
         lines.append(f"  Result     : {status}{timing_str}")
 
         if not r["passed"]:
-            lines.append(f"  Error      : {_trunc(r.get('error', ''), 80)}")
+            lines.append(f"  Error      : {_tail_error(r.get('error', ''), 120)}")
 
             rec = r.get("recovery")
             if rec:
@@ -180,12 +186,12 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
                 rec_timing = f"  ({rec_s}s)" if rec_s is not None else ""
                 total_s = r.get("total_elapsed_s")
                 lines.append(f"  Recovery   : classified → step {rec['failing_step']} ({step_label})")
-                lines.append(f"  Rec reason : {_trunc(rec['reason'], 90)}")
+                lines.append(f"  Rec reason : {_trunc(rec['reason'], 120)}")
                 lines.append(f"  Rec result : {rec_status}{rec_timing}")
                 if total_s is not None:
                     lines.append(f"  Total time : {total_s}s  ({initial_s}s initial + {rec_s}s recovery)")
                 if not rec["passed"]:
-                    lines.append(f"  Rec error  : {_trunc(rec.get('error', ''), 80)}")
+                    lines.append(f"  Rec error  : {_tail_error(rec.get('error', ''), 120)}")
             else:
                 lines.append("  Recovery   : (run with --recover to enable)")
 

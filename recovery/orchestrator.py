@@ -9,10 +9,21 @@ Routing rules:
 
 from __future__ import annotations
 
+import config
 from agents.coder import code
 from agents.planner import plan
 from agents.verifier import verify
 from recovery.classifier import classify_failure
+
+
+def _code_with_escalation(problem_prompt: str, plan_text: str, error_context: str = "") -> str:
+    """Run the coder with RECOVERY_CODER_MODEL, restoring the original model afterwards."""
+    original = config.CODER_MODEL
+    config.CODER_MODEL = config.RECOVERY_CODER_MODEL
+    try:
+        return code(problem_prompt, plan_text, error_context=error_context)
+    finally:
+        config.CODER_MODEL = original
 
 
 class RecoveryOrchestrator:
@@ -30,15 +41,18 @@ class RecoveryOrchestrator:
         print(f"\n[RECOVERY] Classifier → step {failing_step} failed: {reason}")
 
         if failing_step == 1:
-            print("[RECOVERY] Rerunning from step 1: Planner → Coder → Verifier")
+            print(f"[RECOVERY] Rerunning from step 1: Planner → Coder({config.RECOVERY_CODER_MODEL}) → Verifier")
             plan_text = plan(problem["prompt"], error_context=reason)
             print(f"\n{plan_text}\n")
-            solution_code = code(problem["prompt"], plan_text)
+            solution_code = _code_with_escalation(problem["prompt"], plan_text)
             print(f"\n{solution_code}\n")
 
         elif failing_step == 2:
-            print("[RECOVERY] Rerunning from step 2: Coder → Verifier")
-            solution_code = code(problem["prompt"], plan_text, error_context=f"{error}\n\nDiagnosis:\n{review}")
+            print(f"[RECOVERY] Rerunning from step 2: Coder({config.RECOVERY_CODER_MODEL}) → Verifier")
+            solution_code = _code_with_escalation(
+                problem["prompt"], plan_text,
+                error_context=f"{error}\n\nDiagnosis:\n{review}",
+            )
             print(f"\n{solution_code}\n")
 
         else:
