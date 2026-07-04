@@ -1,0 +1,28 @@
+
+========================================================================
+  FINAL SUMMARY REPORT
+  3 tasks  |  Pass@1: 33.33%  (1/3 passed)
+========================================================================
+
+  Task       : HumanEval/0
+  Result     : FAIL ✗
+  Error      : Traceback (most recent call last):   File "/var/folders/x5/cchxqz515h13v9swd2h72…
+  Root cause : [ACTION] misalignment  (confidence 80%)
+  Caused by  : Step 2 — CODER
+  Description: The CODER agent failed to account for non-adjacent pairs and incorrectly stated the sortin…
+  Fix hint   : <corrected code with proper non-adjacent pair checking and sorted list handling>
+  ------------------------------------------------------------------------
+
+  Task       : HumanEval/1
+  Result     : FAIL ✗
+  Error      : Traceback (most recent call last):   File "/var/folders/x5/cchxqz515h13v9swd2h72…
+  Root cause : [PLANNING] constraint_ignorance  (confidence 80%)
+  Caused by  : Step 2 — CODER
+  Description: The coder agent executed a plan based on the flawed input from Step 1, which caused it to …
+  Fix hint   : Adjust the planning decision in Step 1 to not include the current state index in the start…
+  ------------------------------------------------------------------------
+
+  Task       : HumanEval/2
+  Result     : PASS ✓
+  ------------------------------------------------------------------------
+========================================================================

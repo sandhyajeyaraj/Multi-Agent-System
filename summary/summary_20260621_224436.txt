@@ -1,0 +1,23 @@
+
+========================================================================
+  FINAL SUMMARY REPORT
+  2 tasks  |  Pass@1: 0.00%  (0/2 passed)
+========================================================================
+
+  Task       : HumanEval/0
+  Result     : FAIL ✗
+  Error      : Traceback (most recent call last):   File "/var/folders/x5/cchxqz515h13v9swd2h72…
+  Recovery   : classified → step 2 (Coder)
+  Rec reason : Code logic is correct but missing an import that causes a NameError.
+  Rec result : PASS ✓
+  ------------------------------------------------------------------------
+
+  Task       : HumanEval/1
+  Result     : FAIL ✗
+  Error      : Traceback (most recent call last):   File "/var/folders/x5/cchxqz515h13v9swd2h72…
+  Recovery   : classified → step 3 (Verifier)
+  Rec reason : The test failed due to an import error in the code.
+  Rec result : FAIL ✗
+  Rec error  : Traceback (most recent call last):   File "/var/folders/x5/cchxqz515h13v9swd2h72…
+  ------------------------------------------------------------------------
+========================================================================

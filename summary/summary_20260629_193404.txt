@@ -1,0 +1,15 @@
+
+========================================================================
+  FINAL SUMMARY REPORT
+  1 tasks  |  Pass@1: 0.00%  (0/1 passed)
+========================================================================
+
+  Task       : HumanEval/0
+  Result     : FAIL ✗  (89.4s)
+  Error      : NameError: name 'List' is not defined. Did you mean: 'list'?
+  Recovery   : classified → step 2 (Coder)
+  Rec reason : The code has logic/implementation bugs; it should iterate through each pair of numbers in the list and compare their abs…
+  Rec result : PASS ✓  (62.12s)
+  Total time : 151.52s  (89.4s initial + 62.12s recovery)
+  ------------------------------------------------------------------------
+========================================================================

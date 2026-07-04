@@ -1,0 +1,14 @@
+
+========================================================================
+  FINAL SUMMARY REPORT
+  1 tasks  |  Pass@1: 0.00%  (0/1 passed)
+========================================================================
+
+  Task       : HumanEval/0
+  Result     : FAIL ✗  (74.51s)
+  Error      : Traceback (most recent call last):   File "/var/folders/x5/cchxqz515h13v9swd2h72…
+  Recovery   : classified → step 2 (Coder)
+  Rec reason : classifier parse error — defaulting to coder
+  Rec result : PASS ✓  (54.23s)
+  ------------------------------------------------------------------------
+========================================================================
