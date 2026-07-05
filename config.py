@@ -5,13 +5,13 @@ from openai import OpenAI
 # ---------------------------------------------------------------------------
 # Pipeline agents — smaller model for planner/verifier, bigger model for the coder.
 PLANNER_MODEL  = "deepseek-coder:6.7b"
-CODER_MODEL    = "deepseek-coder:6.7b"
+CODER_MODEL    = "deepseek-coder-v2:16b"
 VERIFIER_MODEL = "deepseek-coder:6.7b"
 
 # Escalation — only the coder is upgraded during recovery, to an even bigger model.
 # deepseek-coder-v2's next tier up is 236b, which won't fit on Kaggle's GPU, so recovery
 # reuses the same v2:16b coder for now.
-RECOVERY_CODER_MODEL = "deepseek-coder:6.7b"
+RECOVERY_CODER_MODEL = "deepseek-coder-v2:16b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL
