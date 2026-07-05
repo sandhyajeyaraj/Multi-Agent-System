@@ -17,7 +17,7 @@ RECOVERY_CODER_MODEL = "deepseek-coder-v2:16b"
 MODEL = CODER_MODEL
 
 # Separate model used by the classifier/debugger to avoid judging its own output.
-ANALYZER_MODEL = "mistral:7b"
+ANALYZER_MODEL = "llama3.2:latest"
 
 # ---------------------------------------------------------------------------
 # Sampling — tune these for comparison runs
