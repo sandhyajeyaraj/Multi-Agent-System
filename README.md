@@ -1,8 +1,7 @@
-# Multi-Agent System with Root Cause Analysis & Recovery
+# Multi-Agent System with Recovery
 
-A **Planner → Coder → Verifier** multi-agent pipeline that solves [HumanEval](https://huggingface.co/datasets/openai_humaneval) coding problems, with two optional failure-handling layers:
+A **Planner → Coder → Verifier** multi-agent pipeline that solves [HumanEval](https://huggingface.co/datasets/openai_humaneval) coding problems, with an optional failure-handling layer:
 
-- **AgentDebug** (`--debug`) — two-phase root cause analysis inspired by [AgentDebug](https://github.com/ulab-uiuc/AgentDebug)
 - **Recovery Orchestrator** (`--recover`) — classifies the failing step and reruns the pipeline from that point
 
 ---
@@ -30,32 +29,29 @@ Problem Prompt
        │
        ├─── PASS ──────────────────────────────────── Final Summary
        │
-       └─── FAIL ──┬─────────────────────────────────────────────┐
-                   │  (--recover)                  (--debug)      │
-                   ▼                                    ▼         │
-       ┌───────────────────────┐       ┌─────────────────────┐   │
-       │  FAILURE CLASSIFIER   │       │  AGENT DEBUGGER     │   │
-       │  llama3.2 classifies  │       │  Phase 1: per-step  │   │
-       │  which step failed    │       │    error detection   │   │
-       └──────────┬────────────┘       │  Phase 2: root cause│   │
-                  │ failing_step       │    identification   │   │
-                  ▼                    └─────────────────────┘   │
-       ┌───────────────────────┐                                  │
-       │  RECOVERY ORCHESTRAT. │                                  │
-       │  step 1 → full rerun  │                                  │
-       │  step 2 → Coder+Verf  │                                  │
-       │  step 3 → Verif only  │                                  │
-       └───────────────────────┘                                  │
-                  │                                               │
-                  └───────────────────────────────────────────────┘
-                                        │
-                                        ▼
-                                  Final Summary Report
+       └─── FAIL ──── (--recover) ────┐
+                                       ▼
+                       ┌───────────────────────┐
+                       │  FAILURE CLASSIFIER   │
+                       │  llama3.2 classifies  │
+                       │  which step failed    │
+                       └──────────┬────────────┘
+                                  │ failing_step
+                                  ▼
+                       ┌───────────────────────┐
+                       │  RECOVERY ORCHESTRAT. │
+                       │  step 1 → full rerun  │
+                       │  step 2 → Coder+Verf  │
+                       │  step 3 → Verif only  │
+                       └───────────┬───────────┘
+                                   │
+                                   ▼
+                             Final Summary Report
 ```
 
 ### Why a separate analyzer model?
 
-The pipeline agents run on `qwen2.5-coder:32b`. Asking the same model to judge its own mistakes is unreliable. Both the failure classifier and the AgentDebug analyzer use `llama3.2` as an independent judge.
+The pipeline agents run on `qwen2.5-coder:32b`. Asking the same model to judge its own mistakes is unreliable. The failure classifier uses `llama3.2` as an independent judge.
 
 | Component | Model | Config key |
 |---|---|---|
@@ -63,8 +59,6 @@ The pipeline agents run on `qwen2.5-coder:32b`. Asking the same model to judge i
 | Coder | `qwen2.5-coder:32b` | `CODER_MODEL` |
 | Verifier | `qwen2.5-coder:32b` | `VERIFIER_MODEL` |
 | Failure classifier (recovery) | `llama3.2` | `ANALYZER_MODEL` |
-| Phase 1 — step error classifier (debug) | `llama3.2` | `ANALYZER_MODEL` |
-| Phase 2 — root cause identifier (debug) | `llama3.2` | `ANALYZER_MODEL` |
 
 > All three pipeline model keys are independent — you can test a "small planner + large coder" combo by changing only `PLANNER_MODEL` in `config.py`.
 
@@ -84,15 +78,6 @@ The pipeline agents run on `qwen2.5-coder:32b`. Asking the same model to judge i
 │
 ├── data/
 │   └── humaneval_loader.py        # Loads HumanEval from HuggingFace
-│
-├── debugger/                      # AgentDebug two-phase root cause analysis
-│   ├── taxonomy.py                # 17 error types across 5 modules
-│   ├── trajectory.py              # Trajectory + AgentStep dataclasses
-│   ├── step_analyzer.py           # Phase 1: per-agent error detection
-│   ├── root_cause.py              # Phase 2: root cause identification
-│   ├── report.py                  # Terminal report renderer
-│   ├── debugger.py                # AgentDebugger orchestrator
-│   └── __init__.py
 │
 ├── recovery/                      # Targeted recovery on failure
 │   ├── classifier.py              # LLM classifies which step (1/2/3) caused the failure
@@ -125,22 +110,6 @@ Executes the routing decision above and returns the recovery result, which appea
 
 ---
 
-## Error taxonomy (AgentDebug)
-
-The `--debug` layer classifies failures across 5 modules — each agent is only checked against the modules that apply to it.
-
-| Module | Error types | Agents checked |
-|---|---|---|
-| **Memory** | over_simplification, memory_retrieval_failure, hallucination | Coder, Verifier |
-| **Reflection** | progress_misjudge, outcome_misinterpretation, causal_misattribution | Coder, Verifier |
-| **Planning** | constraint_ignorance, impossible_action, inefficient_plan | Planner, Coder |
-| **Action** | misalignment, invalid_action, format_error, parameter_error | All |
-| **System** | step_limit, tool_execution_error, llm_limit, environment_error | All |
-
-> Planner (step 1) is never checked for memory or reflection — there is no prior history at that point.
-
----
-
 ## Setup
 
 ### Prerequisites
@@ -160,7 +129,7 @@ pip install -r requirements.txt
 
 ```bash
 ollama pull qwen2.5-coder:32b   # pipeline agents (Planner, Coder, Verifier)
-ollama pull llama3.2             # failure classifier + AgentDebug analyzer
+ollama pull llama3.2             # failure classifier
 ```
 
 ---
@@ -179,12 +148,7 @@ python main.py --id 42
 
 # Enable recovery: classify failing step and rerun from there
 python main.py --recover
-
-# Enable AgentDebug root cause analysis on failures
-python main.py --debug
-
-# Combine flags — both recovery and debug can run on the same failure
-python main.py --n 10 --recover --debug
+python main.py --n 10 --recover
 python main.py --id 0 --recover
 ```
 
@@ -211,10 +175,6 @@ After all tasks complete, a **Final Summary Report** is printed and saved to `su
   Rec reason : Plan was correct but coder used strict inequality instead of abs difference.
   Rec result : PASS ✓  (8.1s)
   Total time : 17.9s  (9.8s initial + 8.1s recovery)
-  Root cause : [ACTION] misalignment  (confidence 88%)
-  Caused by  : Step 2 — CODER
-  Description: Coder used strict inequality instead of checking absolute difference.
-  Fix hint   : Use abs(a - b) < threshold instead of a != b.
   ------------------------------------------------------------------------
 ```
 
@@ -231,7 +191,7 @@ Key knobs in `config.py`:
 PLANNER_MODEL  = "qwen2.5-coder:32b"
 CODER_MODEL    = "qwen2.5-coder:32b"
 VERIFIER_MODEL = "qwen2.5-coder:32b"
-ANALYZER_MODEL = "llama3.2:latest"   # used by both recovery classifier and AgentDebug
+ANALYZER_MODEL = "llama3.2:latest"   # used by the recovery classifier
 
 # Sampling — temperature=0 + fixed seed gives fully deterministic results
 TEMPERATURE = 0.0
@@ -285,7 +245,7 @@ time.sleep(4)
 ### 6. Install dependencies and run
 ```python
 !pip install -q openai datasets python-dotenv
-!python main.py --n 5 --recover --debug
+!python main.py --n 5 --recover
 ```
 
 > **Notes:** The `32b` model requires ~20 GB of VRAM/RAM. Use the `7b` variant (`qwen2.5-coder:7b`) on CPU-only Kaggle notebooks. Both `qwen2.5-coder:7b` + `llama3.2` together are ~6.7 GB (Kaggle gives 20 GB). For large runs (`--n 20+`) use a **committed** notebook to avoid timeout.
@@ -294,6 +254,5 @@ time.sleep(4)
 
 ## References
 
-- [AgentDebug — ulab-uiuc](https://github.com/ulab-uiuc/AgentDebug)
 - [HumanEval dataset — OpenAI](https://huggingface.co/datasets/openai_humaneval)
 - [Ollama](https://ollama.ai)

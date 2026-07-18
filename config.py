@@ -4,12 +4,12 @@ from openai import OpenAI
 # Models
 # ---------------------------------------------------------------------------
 # Pipeline agents — smaller model for planner/verifier, bigger model for the coder.
-PLANNER_MODEL  = "granite-code:8b"
-CODER_MODEL    = "granite-code:8b"
-VERIFIER_MODEL = "granite-code:8b"
+PLANNER_MODEL  = "qwen2.5-coder:7b"
+CODER_MODEL    = "qwen2.5-coder:7b"
+VERIFIER_MODEL = "qwen2.5-coder:7b"
 
 # Escalation — only the coder is upgraded during recovery, to an even bigger model.
-RECOVERY_CODER_MODEL = "granite-code:8b"
+RECOVERY_CODER_MODEL = "qwen2.5-coder:7b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL
