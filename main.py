@@ -96,6 +96,7 @@ def run_pipeline(problem: dict, debug: bool = False, recover: bool = False) -> d
             solution_code=solution_code,
             error=result["stderr"],
             review=result["review"],
+            trace=result["stdout"],
         )
         recovery_elapsed = time.perf_counter() - _t_rec
         print(f"  Recovery result: {'PASS ✓' if recovery['passed'] else 'FAIL ✗'}  ({recovery_elapsed:.1f}s)")
@@ -187,6 +188,8 @@ def _build_summary_report(results: list, pass_at_1: float) -> str:
                 total_s = r.get("total_elapsed_s")
                 lines.append(f"  Recovery   : classified → step {rec['failing_step']} ({step_label})")
                 lines.append(f"  Rec reason : {_trunc(rec['reason'], 120)}")
+                if rec.get("diagnosis"):
+                    lines.append(f"  Rec diag   : {_trunc(rec['diagnosis'], 120)}")
                 lines.append(f"  Rec result : {rec_status}{rec_timing}")
                 if total_s is not None:
                     lines.append(f"  Total time : {total_s}s  ({initial_s}s initial + {rec_s}s recovery)")

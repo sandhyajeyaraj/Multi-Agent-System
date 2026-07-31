@@ -33,6 +33,7 @@ PLAN_MAX_TOKENS       = 1024
 CODE_MAX_TOKENS       = 2048
 REVIEW_MAX_TOKENS     = 512
 CLASSIFIER_MAX_TOKENS = 256
+TRACE_MAX_TOKENS      = 512
 
 # ---------------------------------------------------------------------------
 # Execution

@@ -2,6 +2,7 @@ import ast
 import re
 
 import config
+from agents.instrument import instrument_source
 from config import CODE_MAX_TOKENS as _MAX_TOKENS
 from config import SEED as _SEED
 from config import TEMPERATURE as _TEMPERATURE
@@ -29,21 +30,28 @@ Use ReAct to diagnose and fix it. Follow this exact format:
 
 Thought: <restate what the code was supposed to do>
 Observation: The failing test was: <FAILING_INPUT> → expected <EXPECTED>, got <ACTUAL>
-Thought: <trace your previous code line by line ON THIS SPECIFIC INPUT, find where it diverges>
+Thought: <read the diagnosis / captured trace you were given and pinpoint the exact divergence it describes>
 Action: Locate the exact line/branch causing the wrong output
 Observation: <name the bug: e.g. "the loop skips the last element">
-Thought: <state the minimal fix>
+Thought: <state the minimal fix that repairs this specific divergence>
 Action: Implement
 Observation:
 ```python
 <complete corrected solution>
 ```
 
-You will be given: the problem, your previous (failing) code, and the failing test case.
-Trace the failing input through your old code BEFORE rewriting. Output only the ReAct trace."""
+You will be given: the problem, your previous (failing) code, and either a
+concrete diagnosis (derived from the actual runtime trace captured via
+debug prints automatically inserted into your code) or the raw failing
+test output. When a diagnosis is given, trust its concrete values — it
+reflects what the code actually did, not a guess — and make the minimal
+targeted fix it points to rather than rewriting from scratch.
+
+Output only the ReAct trace."""
 
 _FENCE = re.compile(r"```(?:python)?\n(.*?)```", re.DOTALL)
 _CODE_START = re.compile(r"^\s*(def |class |import |from |@)", re.MULTILINE)
+_DEF_LINE = re.compile(r"^\s*def\s+\w+\s*\(", re.MULTILINE)
 
 
 def _try_parse(code: str) -> bool:
@@ -83,6 +91,22 @@ def _extract_code(text: str) -> str:
     return text.strip()
 
 
+def _ensure_imports(solution_code: str, problem_prompt: str) -> str:
+    """Prepend any import/setup lines HumanEval puts before the function
+    signature (e.g. `from typing import List`) if the model's generated
+    code dropped them."""
+    match = _DEF_LINE.search(problem_prompt)
+    if not match:
+        return solution_code
+    header_lines = [
+        line for line in problem_prompt[: match.start()].splitlines() if line.strip()
+    ]
+    missing = [line for line in header_lines if line.strip() not in solution_code]
+    if not missing:
+        return solution_code
+    return "\n".join(missing) + "\n\n" + solution_code
+
+
 def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
     """Return a Python implementation based on the problem prompt and plan."""
     if error_context:
@@ -90,7 +114,7 @@ def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
         user_content = (
             f"Problem:\n{problem_prompt}\n\n"
             f"Previous (failing) code:\n{plan}\n\n"
-            f"Failing test output:\n{error_context}"
+            f"Diagnosis / failing test output:\n{error_context}"
         )
     else:
         system = _SYSTEM
@@ -110,4 +134,6 @@ def code(problem_prompt: str, plan: str, error_context: str = "") -> str:
             {"role": "user", "content": user_content},
         ],
     )
-    return _extract_code(response.choices[0].message.content)
+    extracted = _extract_code(response.choices[0].message.content)
+    with_imports = _ensure_imports(extracted, problem_prompt)
+    return instrument_source(with_imports)

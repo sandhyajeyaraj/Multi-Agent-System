@@ -3,7 +3,8 @@ Recovery Orchestrator — re-runs the pipeline from the classified failing step.
 
 Routing rules:
   step 1  →  rerun Planner → Coder → Verifier  (plan was bad)
-  step 2  →  reuse plan,  rerun Coder → Verifier  (code was bad)
+  step 2  →  analyze the captured debug-print trace, then
+             rerun Coder(diagnosis) → Verifier  (code was bad)
   step 3  →  reuse plan + code,  rerun Verifier only  (execution glitch)
 """
 
@@ -14,6 +15,7 @@ from agents.coder import code
 from agents.planner import plan
 from agents.verifier import verify
 from recovery.classifier import classify_failure
+from recovery.trace_analyzer import analyze_trace
 
 
 def _code_with_escalation(problem_prompt: str, plan_text: str, error_context: str = "") -> str:
@@ -34,11 +36,14 @@ class RecoveryOrchestrator:
         solution_code: str,
         error: str,
         review: str,
+        trace: str = "",
     ) -> dict:
         failing_step, reason = classify_failure(
             problem["prompt"], plan_text, solution_code, error, review
         )
         print(f"\n[RECOVERY] Classifier → step {failing_step} failed: {reason}")
+
+        diagnosis = None
 
         if failing_step == 1:
             print(f"[RECOVERY] Rerunning from step 1: Planner → Coder({config.RECOVERY_CODER_MODEL}) → Verifier")
@@ -48,10 +53,15 @@ class RecoveryOrchestrator:
             print(f"\n{solution_code}\n")
 
         elif failing_step == 2:
+            print("[RECOVERY] Coder is root cause — analyzing captured debug-print trace...")
+            diagnosis = analyze_trace(
+                problem["prompt"], solution_code, problem["test"], trace, error
+            )
+            print(f"\n[RECOVERY] Diagnosis: {diagnosis}\n")
             print(f"[RECOVERY] Rerunning from step 2: Coder({config.RECOVERY_CODER_MODEL}) → Verifier")
             solution_code = _code_with_escalation(
                 problem["prompt"], solution_code,
-                error_context=error,
+                error_context=diagnosis,
             )
             print(f"\n{solution_code}\n")
 
@@ -67,6 +77,7 @@ class RecoveryOrchestrator:
         return {
             "failing_step": failing_step,
             "reason": reason,
+            "diagnosis": diagnosis,
             "plan": plan_text,
             "code": solution_code,
             "passed": result["passed"],
