@@ -26,18 +26,34 @@ You are given the captured runtime trace — stdout produced by debug prints
 the code already emits after every loop variable update and before every
 return — from the failing run, alongside the code, the test, and the error.
 
-Diagnose the exact point of divergence: name the variable, the loop
-iteration or return point where it went wrong, the value it actually had
-(quote it from the trace) vs. the value it should have had, and why. This
-diagnosis is handed directly to a repair agent, so pinpoint the divergence
-concretely — do not suggest a full rewrite.
+Diagnose the ROOT CAUSE of the failure, not just the symptom. The repair
+agent needs to know not only WHAT went wrong but WHY and WHERE to fix it.
 
-Respond in 2-4 sentences of the form:
-"At <location>, <var> was <actual> but should have been <expected> because <reason>."
+Follow these steps:
+1. Find where the trace diverged from expected (which loop iteration,
+   which return point).
+2. State the actual value (quote it from the trace) vs. the expected value.
+3. Trace BACKWARD through the code to the SOURCE of that divergence —
+   the specific line, condition, loop bound, or expression that produced
+   the wrong value.
+4. State the minimal fix concretely.
+
+The difference between a bad and a good diagnosis:
+  BAD:  "At return, result was [0,1,2,3] but should have been [0,1,2,3,4]
+         because the last element is missing."
+  GOOD: "At return, result was [0,1,2,3] but should have been [0,1,2,3,4]
+         because the loop uses range(n), which stops at n-1.
+         Fix: change range(n) to range(n+1)."
+
+The bad one restates the symptom. The good one names the guilty line and
+the exact change. Always produce the second kind.
+
+Respond in 3-5 sentences. Do not suggest a full rewrite.
 
 If the trace contains no useful signal (e.g. the failure happened before
 any prints ran, or the code wasn't instrumented), say so explicitly and
-diagnose from the code, test, and error instead."""
+diagnose from the code, test, and error instead — still tracing to the
+root cause and naming the fix."""
 
 
 def analyze_trace(

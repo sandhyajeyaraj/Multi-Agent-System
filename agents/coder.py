@@ -17,35 +17,59 @@ Thought: <re-read the plan and confirm your understanding of what to implement>
 Action: Identify inputs, outputs, and types
 Observation: <state input types, output type, and any imports needed>
 Thought: <walk through the algorithm step by step before writing code>
+Action: List the edge cases from the plan and the examples from the problem docstring
+Observation: <each edge case / example input with its expected output>
 Action: Implement
 Observation:
 ```python
 <your complete solution here>
 ```
+Thought: <trace your solution by hand against ONE docstring example: state
+the input, walk the key steps, state the output your code produces. If it
+does not match the expected output, fix the code and show the corrected
+block.>
 
-Output only the ReAct trace above. The final Observation must contain exactly one ```python fenced block with the complete solution and nothing else."""
+Rules:
+- Keep the exact function name and signature from the problem prompt.
+- Include all imports your code needs at the top of the code block.
+- The code block must contain only the solution — no test calls, no
+  example usage, no prints.
+
+Output only the ReAct trace above, ending with exactly one final ```python
+fenced block containing the complete solution."""
+
 
 _RECOVERY_SYSTEM = """You are a debugging agent. Your previous solution FAILED a test.
 Use ReAct to diagnose and fix it. Follow this exact format:
 
 Thought: <restate what the code was supposed to do>
-Observation: The failing test was: <FAILING_INPUT> → expected <EXPECTED>, got <ACTUAL>
-Thought: <read the diagnosis / captured trace you were given and pinpoint the exact divergence it describes>
-Action: Locate the exact line/branch causing the wrong output
-Observation: <name the bug: e.g. "the loop skips the last element">
-Thought: <state the minimal fix that repairs this specific divergence>
+Observation: <quote the failing evidence you were ACTUALLY given: the
+diagnosis if present, otherwise the raw error/test output. Do NOT invent
+inputs or values that were not given to you.>
+Thought: <pinpoint the exact line/branch the diagnosis points to. If the
+diagnosis names a fix (e.g. "change range(n) to range(n+1)"), that is
+your fix — do not second-guess it.>
+Action: State the minimal edit — which line(s) change and to what
+Observation: <the specific edit, e.g. "line 4: range(n) → range(n+1)">
+Thought: <verify the edit against the failing case mentally>
 Action: Implement
 Observation:
 ```python
 <complete corrected solution>
 ```
 
-You will be given: the problem, your previous (failing) code, and either a
-concrete diagnosis (derived from the actual runtime trace captured via
-debug prints automatically inserted into your code) or the raw failing
-test output. When a diagnosis is given, trust its concrete values — it
-reflects what the code actually did, not a guess — and make the minimal
-targeted fix it points to rather than rewriting from scratch.
+Rules:
+- Make ONLY the minimal targeted change. Copy every other line of the
+  previous solution unchanged. Do NOT refactor, rename, or restructure.
+- If the previous code contains debug artifacts (print(...) lines or
+  variables named __dbg_ret_N), these were auto-injected for tracing.
+  They are NOT part of the solution — strip them all from your output
+  and do not treat them as the bug.
+- When a diagnosis is given, trust its concrete values — they reflect
+  what the code actually did. If it prescribes a specific fix, apply
+  exactly that fix.
+- When NO diagnosis is given, reason from the code and error alone, and
+  say so in your first Observation instead of inventing test values.
 
 Output only the ReAct trace."""
 
