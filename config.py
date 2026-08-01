@@ -9,13 +9,18 @@ CODER_MODEL    = "qwen2.5-coder:7b"
 VERIFIER_MODEL = "qwen2.5-coder:7b"
 
 # Escalation — only the coder is upgraded during recovery, to an even bigger model.
-RECOVERY_CODER_MODEL = "qwen2.5-coder:32b"
+RECOVERY_CODER_MODEL = "qwen2.5-coder:7b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL
 
 # Separate model used by the classifier/debugger to avoid judging its own output.
 ANALYZER_MODEL = "llama3.2:latest"
+
+# Bigger model dedicated to the Phase 2 trace analyzer — diagnosing which
+# variable diverged from a captured runtime trace needs more careful
+# reasoning than ANALYZER_MODEL reliably gives.
+TRACE_ANALYZER_MODEL = "llama3.1:8b"
 
 # ---------------------------------------------------------------------------
 # Sampling — tune these for comparison runs
