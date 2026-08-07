@@ -20,7 +20,7 @@ ANALYZER_MODEL = "llama3.2:latest"
 # Bigger model dedicated to the Phase 2 trace analyzer — diagnosing which
 # variable diverged from a captured runtime trace needs more careful
 # reasoning than ANALYZER_MODEL reliably gives.
-TRACE_ANALYZER_MODEL = "llama3.1:8b"
+TRACE_ANALYZER_MODEL = "llama3.2:latest"
 
 # ---------------------------------------------------------------------------
 # Ablation switches
