@@ -53,11 +53,22 @@ class RecoveryOrchestrator:
             print(f"\n{solution_code}\n")
 
         elif failing_step == 2:
-            print("[RECOVERY] Coder is root cause — analyzing captured debug-print trace...")
-            diagnosis = analyze_trace(
-                problem["prompt"], solution_code, problem["test"], trace, error
-            )
-            print(f"\n[RECOVERY] Diagnosis: {diagnosis}\n")
+            if config.SKIP_TRACE_ANALYZER:
+                print("[RECOVERY] Coder is root cause — skipping analyzer, sending raw trace + assertion directly to Coder")
+                diagnosis = (
+                    f"Problem:\n{problem['prompt']}\n\n"
+                    f"Code (with debug prints):\n{solution_code}\n\n"
+                    f"Test:\n{problem['test']}\n\n"
+                    f"Captured trace (stdout from the failing run):\n"
+                    f"{trace.strip() if trace and trace.strip() else '(empty — no prints captured before failure)'}\n\n"
+                    f"Test error:\n{error}"
+                )
+            else:
+                print("[RECOVERY] Coder is root cause — analyzing captured debug-print trace...")
+                diagnosis = analyze_trace(
+                    problem["prompt"], solution_code, problem["test"], trace, error
+                )
+                print(f"\n[RECOVERY] Diagnosis: {diagnosis}\n")
             print(f"[RECOVERY] Rerunning from step 2: Coder({config.RECOVERY_CODER_MODEL}) → Verifier")
             solution_code = _code_with_escalation(
                 problem["prompt"], solution_code,

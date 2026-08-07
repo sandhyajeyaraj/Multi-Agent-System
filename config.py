@@ -23,6 +23,14 @@ ANALYZER_MODEL = "llama3.2:latest"
 TRACE_ANALYZER_MODEL = "llama3.1:8b"
 
 # ---------------------------------------------------------------------------
+# Ablation switches
+# ---------------------------------------------------------------------------
+# Experiment 1: skip the trace-analyzer agent on step-2 (Coder) failures and
+# feed the raw assertion error + captured debug-print trace directly to the
+# Recovery Coder as error_context, instead of a synthesized diagnosis.
+SKIP_TRACE_ANALYZER = True
+
+# ---------------------------------------------------------------------------
 # Sampling — tune these for comparison runs
 # ---------------------------------------------------------------------------
 # temperature=0 + fixed seed → fully deterministic (best for ablations).
