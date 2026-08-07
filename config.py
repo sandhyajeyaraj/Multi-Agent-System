@@ -9,7 +9,7 @@ CODER_MODEL    = "qwen2.5-coder:7b"
 VERIFIER_MODEL = "qwen2.5-coder:7b"
 
 # Escalation — only the coder is upgraded during recovery, to an even bigger model.
-RECOVERY_CODER_MODEL = "qwen2.5-coder:7b"
+RECOVERY_CODER_MODEL = "qwen2.5-coder:32b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL
