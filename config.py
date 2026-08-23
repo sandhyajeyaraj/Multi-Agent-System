@@ -4,12 +4,12 @@ from openai import OpenAI
 # Models
 # ---------------------------------------------------------------------------
 # Pipeline agents — smaller model for planner/verifier, bigger model for the coder.
-PLANNER_MODEL  = "mistral:7b"
-CODER_MODEL    = "mistral:7b"
-VERIFIER_MODEL = "mistral:7b"
+PLANNER_MODEL  = "codellama:7b"
+CODER_MODEL    = "codellama:7b"
+VERIFIER_MODEL = "codellama:7b"
 
 # Escalation — only the coder is upgraded during recovery, to an even bigger model.
-RECOVERY_CODER_MODEL = "mistral-small:24b"
+RECOVERY_CODER_MODEL = "codellama:13b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL
