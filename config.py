@@ -9,7 +9,7 @@ CODER_MODEL    = "codellama:7b"
 VERIFIER_MODEL = "codellama:7b"
 
 # Escalation — only the coder is upgraded during recovery, to an even bigger model.
-RECOVERY_CODER_MODEL = "codellama:13b"
+RECOVERY_CODER_MODEL = "codellama:7b"
 
 # Kept for backwards-compatibility — agents now import their specific model.
 MODEL = CODER_MODEL
